@@ -79,3 +79,17 @@ CREATE TABLE IF NOT EXISTS feedback_humano (
     comentario           TEXT,
     criado_em            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+--MONITORAMENTO: métricas de execução de cada job do pipeline
+CREATE TABLE IF NOT EXISTS pipeline_execucoes (
+    id                BIGSERIAL PRIMARY KEY,
+    job_nome          TEXT NOT NULL,
+    status            TEXT NOT NULL,
+    registros_processados INTEGER NOT NULL DEFAULT 0,
+    duracao_segundos  NUMERIC(8,3),
+    erro_mensagem     TEXT,
+    executado_em      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_execucoes_job ON pipeline_execucoes(job_nome, executado_em DESC);

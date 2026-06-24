@@ -3,7 +3,9 @@ from datetime import datetime, timedelta
 import random
 from sqlalchemy import text
 from ..db import get_engine
+from src.shared.logger import get_logger
 
+logger = get_logger(__name__)
 
 # Dados simulados para gerar mensagens realistas
 SERVERS = ["sv_jogos", "sv_estudos", "sv_casual"]
@@ -38,14 +40,14 @@ def gerar_mensagem():
     server = random.choice(SERVERS)
     channel = random.choice(CHANNELS[server])
     user = random.choice(USERS)
-    
-    if random.random() < 0.8:  # 80% de mensagens benignas
+
+    if random.random() < 0.8:
         texto = random.choice(MENSAGENS_BENIGNAS)
-    else:  # 20% suspeitas
+    else:
         texto = random.choice(MENSAGENS_SUSPEITAS)
-    
+
     timestamp = datetime.now() - timedelta(seconds=random.randint(0, 3600))
-    
+
     return {
         "message_id": str(uuid.uuid4()),
         "server_id": server,
@@ -56,43 +58,80 @@ def gerar_mensagem():
     }
 
 
-def inserir_mensagem_no_bronze(mensagem: dict):
-    """Insere uma mensagem no Bronze, com colunas de decisão ainda vazias."""
+def validar_mensagem(mensagem: dict) -> tuple[bool, str]:
+    """
+    Camada de Qualidade: valida a mensagem antes de aceitar a ingestão.
+    Retorna (valido, motivo). Mensagens invalidas sao rejeitadas aqui,
+    nao 'corrigidas silenciosamente' depois na Silver.
+    """
+    if not mensagem.get("texto") or not mensagem["texto"].strip():
+        return False, "texto vazio"
+
+    if not mensagem.get("user_id"):
+        return False, "user_id ausente"
+
+    if not mensagem.get("server_id"):
+        return False, "server_id ausente"
+
+    if len(mensagem["texto"]) > 2000:
+        return False, "texto excede tamanho maximo permitido"
+
+    return True, ""
+
+
+def inserir_mensagem_no_bronze(mensagem: dict) -> bool:
+    """
+    Insere uma mensagem no Bronze, com colunas de decisao ainda vazias.
+    Retorna True se inseriu, False se rejeitada na validacao.
+    """
+    valido, motivo = validar_mensagem(mensagem)
+    if not valido:
+        logger.warning(f"Mensagem rejeitada na ingestao (qualidade): {motivo} | dados={mensagem}")
+        return False
+
     engine = get_engine()
-    
-    with engine.connect() as conn:
-        conn.execute(
-            text("""
-                INSERT INTO bronze_eventos 
-                (message_id, server_id, channel_id, user_id, texto, criado_em, 
-                 score_porteiro, passou_porteiro, score_toxicidade, categoria, acao)
-                VALUES 
-                (:message_id, :server_id, :channel_id, :user_id, :texto, :criado_em,
-                 NULL, FALSE, NULL, NULL, 'nenhuma')
-            """),
-            {
-                "message_id": mensagem["message_id"],
-                "server_id": mensagem["server_id"],
-                "channel_id": mensagem["channel_id"],
-                "user_id": mensagem["user_id"],
-                "texto": mensagem["texto"],
-                "criado_em": mensagem["criado_em"],
-            }
-        )
-        conn.commit()
+    try:
+        with engine.connect() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO bronze_eventos 
+                    (message_id, server_id, channel_id, user_id, texto, criado_em, 
+                     score_porteiro, passou_porteiro, score_toxicidade, categoria, acao)
+                    VALUES 
+                    (:message_id, :server_id, :channel_id, :user_id, :texto, :criado_em,
+                     NULL, FALSE, NULL, NULL, 'nenhuma')
+                """),
+                {
+                    "message_id": mensagem["message_id"],
+                    "server_id": mensagem["server_id"],
+                    "channel_id": mensagem["channel_id"],
+                    "user_id": mensagem["user_id"],
+                    "texto": mensagem["texto"],
+                    "criado_em": mensagem["criado_em"],
+                }
+            )
+            conn.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao inserir mensagem {mensagem['message_id']} no Bronze: {e}")
+        return False
 
 
 def simular_lote(quantidade: int):
     """Gera e insere um lote de mensagens simuladas."""
-    print(f"Gerando e inserindo {quantidade} mensagens...")
+    logger.info(f"Iniciando simulacao de {quantidade} mensagens")
+    inseridas = 0
+    rejeitadas = 0
+
     for i in range(quantidade):
         msg = gerar_mensagem()
-        inserir_mensagem_no_bronze(msg)
-        if (i + 1) % 10 == 0:
-            print(f"  {i + 1}/{quantidade} mensagens inseridas")
-    print(f"Lote de {quantidade} mensagens completo!")
+        if inserir_mensagem_no_bronze(msg):
+            inseridas += 1
+        else:
+            rejeitadas += 1
+
+    logger.info(f"Lote concluido: {inseridas} inseridas, {rejeitadas} rejeitadas")
 
 
 if __name__ == "__main__":
-    # Se executado diretamente, simula um lote pequeno para teste
     simular_lote(20)
