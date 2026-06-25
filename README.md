@@ -197,7 +197,7 @@ Streamlit como tela principal, com 4 abas:
 
 ## 8. Tabela de correspondência: Final/Produção → MVP
 
-| Papel arquitetural | Arquitetura visionária | MVP implementado | Justificativa |
+| Papel arquitetural | Arquitetura vi | MVP implementado | Justificativa |
 |---|---|---|---|
 | Ingestão | Apache Kafka | `src/ingestion/simulator.py` (gera + valida mensagens) | Kafka exige cluster; volume do protótipo não justifica |
 | Cache de contexto | Redis | Tabela `ai_server_context` consultada direto no Postgres | Sem necessidade de latência sub-ms em ambiente de validação |
