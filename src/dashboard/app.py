@@ -13,11 +13,11 @@ from src.pipeline.gold import processar_gold
 
 st.set_page_config(page_title="Sentinel.AI", page_icon="🛡️", layout="wide")
 
-st.title("🛡️ Sentinel.AI — Painel de Moderação")
+st.title("Sentinel.AI — Painel de Moderação")
 st.caption("Pipeline de moderação de conteúdo em tempo real com IA contextual")
 
 aba_simular, aba_dashboard, aba_perfis, aba_logs = st.tabs(
-    ["▶️ Simular mensagem", "📊 Dashboard", "🧠 Perfis de servidor", "🩺 Saúde do pipeline"]
+    ["Simular mensagem", "Dashboard", "Perfis de servidor", "🩺 Saúde do pipeline"]
 )
 
 # ============================================================
@@ -26,7 +26,7 @@ aba_simular, aba_dashboard, aba_perfis, aba_logs = st.tabs(
 with aba_simular:
     st.subheader("Disparar simulação do pipeline")
     st.write(
-        "Gera mensagens simuladas, roda o Fluxo 1 (decisão) sobre as pendentes, "
+        "Gera mensagens simuladas"
         "e atualiza as camadas Silver e Gold — um ciclo completo manual."
     )
 
@@ -36,7 +36,7 @@ with aba_simular:
     with col2:
         st.write("")
         st.write("")
-        executar = st.button("▶️ Executar ciclo completo", type="primary")
+        executar = st.button(" Executar ciclo completo", type="primary")
 
     if executar:
         with st.spinner("Simulando mensagens..."):
